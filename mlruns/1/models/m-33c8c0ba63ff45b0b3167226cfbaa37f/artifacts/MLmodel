@@ -1,0 +1,27 @@
+artifact_path: file:C:/Users/laami/Desktop/load_forecasting/mlruns/1/models/m-33c8c0ba63ff45b0b3167226cfbaa37f/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.skops
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMRegressor
+    serialization_format: skops
+    skops_trusted_types:
+    - collections.OrderedDict
+    - lightgbm.sklearn.LGBMClassifier
+    - lightgbm.basic.Booster
+    - lightgbm.sklearn.LGBMRegressor
+  python_function:
+    data: model.skops
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.13.7
+mlflow_version: 3.14.0
+model_id: m-33c8c0ba63ff45b0b3167226cfbaa37f
+model_size_bytes: 11731332
+model_uuid: m-33c8c0ba63ff45b0b3167226cfbaa37f
+prompts: null
+run_id: 6c220430917e451aaad4bea06a7e466c
+utc_time_created: '2026-06-21 13:06:52.784441'

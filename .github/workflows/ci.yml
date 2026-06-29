@@ -1,0 +1,84 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build and push load-demand-api image
+      - name: Build, Tag, and Push load-demand-api
+        run: |
+          IMAGE_TAG=${GITHUB_SHA}
+          ECR_REGISTRY=652953065856.dkr.ecr.eu-central-1.amazonaws.com
+          ECR_REPOSITORY=load-demand-api
+
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      # Build and push load-demand-streamlit image
+      - name: Build, Tag, and Push load-demand-streamlit
+        run: |
+          IMAGE_TAG=${GITHUB_SHA}
+          ECR_REGISTRY=652953065856.dkr.ecr.eu-central-1.amazonaws.com
+          ECR_REPOSITORY=load-demand-streamlit
+
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile.streamlit .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      
+      # Deploy to ECS - API
+      - name: Deploy load-demand-api-service
+        run: |
+          # Get current task definition
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition load-demand-api-task-ecs --query 'taskDefinition')
+          
+          # Update image URI to force new pull
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "652953065856.dkr.ecr.eu-central-1.amazonaws.com/load-demand-api:${GITHUB_SHA}" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)')
+          
+          # Register new task definition
+          aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF"
+          # Update service with new task definition
+          aws ecs update-service \
+          --cluster load-demand-api-cluster-ecs \
+          --service load-demand-api-service \
+          --task-definition load-demand-api-task-ecs
+
+      # Deploy to ECS - Streamlit  
+      - name: Deploy load-demand-streamlit-service
+        run: |
+          # Get current task definition
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition load-demand-streamlit --query 'taskDefinition')
+    
+          # Update image URI
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "652953065856.dkr.ecr.eu-central-1.amazonaws.com/load-demand-streamlit:${GITHUB_SHA}" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)')
+    
+          # Register new task definition
+          aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF"
+    
+          # Update service
+          aws ecs update-service \
+          --cluster load-demand-api-cluster-ecs \
+          --service load-demand-streamlit-service \
+          --task-definition load-demand-streamlit

@@ -1,0 +1,34 @@
+# Virtual environments
+venv/
+.venv/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Pytest
+.pytest_cache/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Data
+data/
+
+# Models
+models/
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.h5
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+lightning_logs/
